@@ -1,36 +1,102 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dearest 💕
 
-## Getting Started
+> Setiap momen berdua, abadi selamanya.
 
-First, run the development server:
+App PWA untuk pasangan — catat kenangan date, rencanakan date berikutnya, dan rayakan milestone bersama.
+
+## Tech Stack
+
+- **Next.js 14** (App Router)
+- **Supabase** (Auth, Database, Storage)
+- **Tailwind CSS**
+- **Zustand** (state management)
+- **next-pwa** (PWA support)
+- **date-fns** (date formatting)
+
+## Setup
+
+### 1. Clone & install
+
+```bash
+npm install
+```
+
+### 2. Buat Supabase project
+
+1. Buka [supabase.com](https://supabase.com) → buat project baru
+2. Di **SQL Editor**, jalankan isi file `supabase-schema.sql`
+3. Di **Authentication → Email**, matikan "Confirm email" untuk development
+
+### 3. Environment variables
+
+Salin `.env.local.example` menjadi `.env.local` dan isi nilainya:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Nilai bisa ditemukan di: **Supabase Dashboard → Project Settings → API**
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+### 4. Ikon PWA
+
+Tambahkan ikon ke `public/icons/`:
+- `icon-192.png` (192×192 px)
+- `icon-512.png` (512×512 px)
+
+Bisa generate di [realfavicongenerator.net](https://realfavicongenerator.net)
+
+### 5. Jalankan
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy ke Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install -g vercel
+vercel
+```
 
-## Learn More
+Tambahkan environment variables di Vercel Dashboard → Settings → Environment Variables.
 
-To learn more about Next.js, take a look at the following resources:
+## Fitur
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Date Journal** — catat momen, mood, rating, dan catatan tiap date
+- **Date Planner** — rencanakan date berikutnya dengan inspirasi ide
+- **Milestones** — countdown anniversary dan hari-hari spesial
+- **Memory Gallery** — galeri foto dari semua kenangan date
+- **Real-time sync** — data tersinkron antara dua pasangan
+- **PWA** — bisa di-install di HP seperti app native
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Struktur Folder
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/
+│   ├── page.tsx              ← Halaman utama
+│   ├── auth/login/           ← Login
+│   ├── auth/register/        ← Register
+│   ├── dates/                ← Daftar & form date
+│   ├── planner/              ← Date planner
+│   ├── milestones/           ← Milestone tracker
+│   └── gallery/              ← Galeri foto
+├── lib/supabase/
+│   ├── client.ts             ← Browser client
+│   ├── server.ts             ← Server client
+│   └── types.ts              ← TypeScript types
+├── store/
+│   └── useAppStore.ts        ← Zustand store
+├── hooks/
+│   ├── useAuth.ts            ← Auth hook
+│   └── useCouple.ts          ← Couple hook
+└── components/
+    └── ui/BottomNav.tsx      ← Bottom navigation
+```
