@@ -1,7 +1,6 @@
 'use client'
 import { createClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/store/useAppStore'
-import { nanoid } from 'nanoid' // we'll use a simple alternative
 
 function generateCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase()

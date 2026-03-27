@@ -54,52 +54,100 @@ alter table dates      enable row level security;
 alter table milestones enable row level security;
 
 -- Profiles: baca & update profil sendiri
+-- FIX: tambah policy agar pasangan bisa dibaca (untuk nampilin initial partner)
+drop policy if exists "Users read own profile" on profiles;
 create policy "Users read own profile"
-  on profiles for select using (auth.uid() = id);
+  on profiles for select
+  using (
+    auth.uid() = id
+    or couple_id in (select couple_id from profiles where id = auth.uid())
+  );
 
+drop policy if exists "Users update own profile" on profiles;
 create policy "Users update own profile"
   on profiles for update using (auth.uid() = id);
 
+drop policy if exists "Users insert own profile" on profiles;
 create policy "Users insert own profile"
   on profiles for insert with check (auth.uid() = id);
 
 -- Couples: baca couple sendiri
+drop policy if exists "Couple members read couple" on couples;
 create policy "Couple members read couple"
   on couples for select
   using (id in (select couple_id from profiles where id = auth.uid()));
 
+drop policy if exists "Anyone insert couple" on couples;
 create policy "Anyone insert couple"
   on couples for insert with check (true);
 
+-- FIX: couples perlu bisa di-update (saat partner bergabung)
+drop policy if exists "Couple members update couple" on couples;
+create policy "Couple members update couple"
+  on couples for update
+  using (id in (select couple_id from profiles where id = auth.uid()));
+
 -- Dates: akses hanya untuk pasangan yang sama
+drop policy if exists "Couple members read dates" on dates;
 create policy "Couple members read dates"
   on dates for select
   using (couple_id in (select couple_id from profiles where id = auth.uid()));
 
+drop policy if exists "Couple members insert dates" on dates;
 create policy "Couple members insert dates"
   on dates for insert
   with check (couple_id in (select couple_id from profiles where id = auth.uid()));
 
+drop policy if exists "Couple members update dates" on dates;
 create policy "Couple members update dates"
   on dates for update
   using (couple_id in (select couple_id from profiles where id = auth.uid()));
 
+drop policy if exists "Couple members delete dates" on dates;
 create policy "Couple members delete dates"
   on dates for delete
   using (couple_id in (select couple_id from profiles where id = auth.uid()));
 
 -- Milestones: akses hanya untuk pasangan yang sama
+drop policy if exists "Couple members read milestones" on milestones;
 create policy "Couple members read milestones"
   on milestones for select
   using (couple_id in (select couple_id from profiles where id = auth.uid()));
 
+drop policy if exists "Couple members insert milestones" on milestones;
 create policy "Couple members insert milestones"
   on milestones for insert
   with check (couple_id in (select couple_id from profiles where id = auth.uid()));
 
+drop policy if exists "Couple members delete milestones" on milestones;
 create policy "Couple members delete milestones"
   on milestones for delete
   using (couple_id in (select couple_id from profiles where id = auth.uid()));
+
+-- ============================================================
+-- FIX: Auto-create profile saat user register via Supabase Auth
+-- (Fallback jika signUp di kode gagal insert manual)
+-- ============================================================
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.profiles (id, display_name)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1))
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
 
 -- ============================================================
 -- STORAGE BUCKET untuk foto (jalankan terpisah jika perlu)

@@ -21,7 +21,7 @@ const tabs: { key: Tab; href: string; label: string; icon: React.ReactNode }[] =
     icon: <svg className="w-5 h-5" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>,
   },
   {
-    key: 'profile', href: '/auth/login', label: 'Profil',
+    key: 'profile', href: '/profile', label: 'Profil',
     icon: <svg className="w-5 h-5" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   },
 ]

@@ -1,11 +1,14 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { differenceInDays, format, formatDistanceToNow } from 'date-fns'
+import { differenceInDays, format } from 'date-fns'
 import { id } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/store/useAppStore'
 import BottomNav from '@/components/ui/BottomNav'
+import type { Database } from '@/lib/supabase/types'
+
+type Profile = Database['public']['Tables']['profiles']['Row']
 
 function Countdown({ targetDate }: { targetDate: Date }) {
   const [time, setTime] = useState({ d: 0, h: 0, m: 0, s: 0 })
@@ -22,8 +25,8 @@ function Countdown({ targetDate }: { targetDate: Date }) {
       })
     }
     tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
+    const timerId = setInterval(tick, 1000)
+    return () => clearInterval(timerId)
   }, [targetDate])
 
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -49,6 +52,9 @@ export default function HomePage() {
   const { user, profile, couple, dates, milestones, setDates, setMilestones } = useAppStore()
   const supabase = createClient()
 
+  // Fetch partner profile to get their name initial
+  const [partnerProfile, setPartnerProfile] = useState<Profile | null>(null)
+
   const greeting = () => {
     const h = new Date().getHours()
     if (h < 11) return 'Selamat pagi'
@@ -73,6 +79,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!couple) return
+
     supabase
       .from('dates')
       .select('*')
@@ -87,9 +94,36 @@ export default function HomePage() {
       .eq('couple_id', couple.id)
       .order('date', { ascending: true })
       .then(({ data }) => data && setMilestones(data))
-  }, [couple])
+
+    // Fetch partner profile (other member of the couple)
+    if (user) {
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('couple_id', couple.id)
+        .neq('id', user.id)
+        .maybeSingle()
+        .then(({ data }) => setPartnerProfile(data))
+    }
+  }, [couple, user])
 
   const upcomingMilestone = milestones.find(m => new Date(m.date) > new Date())
+
+  // Loading state — tampilkan spinner saat auth belum selesai inisialisasi
+  if (!user) {
+    return (
+      <main className="relative min-h-screen max-w-[390px] mx-auto flex items-center justify-center">
+        <div className="fixed inset-0 pointer-events-none z-0">
+          <div className="absolute w-96 h-96 rounded-full bg-blush/40 blur-[80px] -top-24 -right-16" />
+          <div className="absolute w-80 h-80 rounded-full bg-lavender/35 blur-[80px] bottom-10 -left-16" />
+        </div>
+        <div className="relative z-10 flex flex-col items-center gap-4">
+          <h1 className="font-serif text-3xl font-light italic text-rose-deep">dearest</h1>
+          <div className="w-6 h-6 rounded-full border-2 border-rose-deep/30 border-t-rose-deep animate-spin" />
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="relative min-h-screen max-w-[390px] mx-auto flex flex-col">
@@ -110,7 +144,8 @@ export default function HomePage() {
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
               </svg>
             </Link>
-            <Link href="/auth/login" className="w-9 h-9 rounded-full glass flex items-center justify-center">
+            {/* Fix: link ke /profile bukan /auth/login */}
+            <Link href="/profile" className="w-9 h-9 rounded-full glass flex items-center justify-center">
               <svg className="w-4 h-4 stroke-rose-deep" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
               </svg>
@@ -132,15 +167,23 @@ export default function HomePage() {
         <div className="px-6 pt-6 animate-fade-up-3">
           <div className="glass rounded-3xl p-4 flex items-center gap-4">
             <div className="flex items-center">
+              {/* My avatar */}
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blush to-[#e8b4ba] border-2 border-white flex items-center justify-center font-serif text-base italic text-rose-deep">
-                {profile?.display_name?.[0] ?? 'A'}
+                {profile?.display_name?.[0]?.toUpperCase() ?? '?'}
               </div>
+              {/* Partner avatar — pakai initial asli partner */}
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-lavender to-[#c8b8d8] border-2 border-white flex items-center justify-center font-serif text-base italic text-[#7a5a8a] -ml-3">
-                B
+                {couple
+                  ? (partnerProfile?.display_name?.[0]?.toUpperCase() ?? '♡')
+                  : '?'}
               </div>
             </div>
             <div className="flex-1">
-              <p className="font-serif text-base text-text-main">Kamu &amp; Pasangan</p>
+              <p className="font-serif text-base text-text-main">
+                {couple && partnerProfile
+                  ? `${profile?.display_name ?? 'Kamu'} & ${partnerProfile.display_name ?? 'Pasangan'}`
+                  : 'Kamu & Pasangan'}
+              </p>
               <p className="text-[11px] text-muted">
                 {couple
                   ? `bersama sejak ${format(new Date(couple.created_at), 'd MMM yyyy', { locale: id })}`
@@ -227,7 +270,7 @@ export default function HomePage() {
 
       {/* FAB */}
       <Link href="/dates/new"
-        className="fixed bottom-24 right-6 w-13 h-13 bg-rose-deep rounded-full flex items-center justify-center shadow-lg shadow-rose-deep/40 hover:scale-105 transition-transform z-20"
+        className="fixed bottom-24 right-6 bg-rose-deep rounded-full flex items-center justify-center shadow-lg shadow-rose-deep/40 hover:scale-105 transition-transform z-20"
         style={{ width: 52, height: 52 }}>
         <svg className="w-5 h-5 stroke-white" fill="none" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24">
           <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>

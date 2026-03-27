@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Cormorant_Garamond, DM_Sans } from 'next/font/google'
+import AuthProvider from '@/components/AuthProvider'
 import './globals.css'
 
 const cormorant = Cormorant_Garamond({
@@ -47,7 +48,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
       <body className="bg-ivory font-sans text-text-main antialiased">
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )
