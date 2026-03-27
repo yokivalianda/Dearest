@@ -16,19 +16,18 @@ const moodBg: Record<string, string> = {
 }
 
 export default function DatesPage() {
-  const supabase = createClient()
   const { couple, dates, setDates } = useAppStore()
+  const supabase = createClient()
 
   useEffect(() => {
     if (!couple) return
-    const coupleId = couple.id
     supabase
       .from('dates')
       .select('*')
-      .eq('couple_id', coupleId)
+      .eq('couple_id', couple.id)
       .order('date', { ascending: false })
       .then(({ data }) => data && setDates(data))
-  }, [couple?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [couple])
 
   return (
     <main className="relative min-h-screen max-w-[390px] mx-auto flex flex-col">
@@ -38,6 +37,7 @@ export default function DatesPage() {
       </div>
 
       <div className="relative z-10 flex flex-col flex-1 px-6 pt-14 pb-32">
+        {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <p className="font-serif text-sm italic text-muted">semua kenangan</p>
@@ -53,11 +53,15 @@ export default function DatesPage() {
           </Link>
         </div>
 
+        {/* List */}
         {dates.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center">
             <span className="text-5xl">🌸</span>
             <p className="font-serif text-xl italic text-muted">Belum ada kenangan tersimpan</p>
-            <Link href="/dates/new" className="bg-rose-deep text-white text-sm px-6 py-2.5 rounded-full mt-2">
+            <Link
+              href="/dates/new"
+              className="bg-rose-deep text-white text-sm px-6 py-2.5 rounded-full mt-2"
+            >
               Catat date pertama
             </Link>
           </div>
@@ -69,9 +73,11 @@ export default function DatesPage() {
                 href={`/dates/${d.id}`}
                 className="glass rounded-2xl p-4 flex gap-4 hover:-translate-y-0.5 transition-transform duration-200"
               >
+                {/* Mood icon */}
                 <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${moodBg[d.mood ?? ''] ?? 'from-blush to-[#e8b4ba]'} flex items-center justify-center text-2xl flex-shrink-0`}>
                   {d.mood ?? '✨'}
                 </div>
+                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-serif text-base text-text-main leading-snug">{d.title}</p>

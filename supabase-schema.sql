@@ -1,167 +1,107 @@
 -- ============================================================
--- DEAREST APP — Supabase SQL Schema (v2 - Production Ready)
+-- DEAREST APP — Supabase SQL Schema
 -- Jalankan di: Supabase Dashboard → SQL Editor → New query
--- Aman untuk dijalankan ulang (idempotent)
 -- ============================================================
 
 -- 1. Tabel couples
-CREATE TABLE IF NOT EXISTS couples (
-  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  invite_code TEXT UNIQUE NOT NULL,
-  created_at  TIMESTAMPTZ DEFAULT now()
+create table if not exists couples (
+  id          uuid default gen_random_uuid() primary key,
+  invite_code text unique not null,
+  created_at  timestamptz default now()
 );
 
 -- 2. Tabel profiles (linked ke auth.users)
-CREATE TABLE IF NOT EXISTS profiles (
-  id           UUID REFERENCES auth.users PRIMARY KEY,
-  display_name TEXT,
-  couple_id    UUID REFERENCES couples(id),
-  avatar_url   TEXT,
-  created_at   TIMESTAMPTZ DEFAULT now()
+create table if not exists profiles (
+  id           uuid references auth.users primary key,
+  display_name text,
+  couple_id    uuid references couples(id),
+  avatar_url   text,
+  created_at   timestamptz default now()
 );
 
 -- 3. Tabel dates
-CREATE TABLE IF NOT EXISTS dates (
-  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  couple_id  UUID REFERENCES couples(id) NOT NULL,
-  title      TEXT NOT NULL,
-  date       DATE NOT NULL,
-  location   TEXT,
-  mood       TEXT,
-  rating     INT CHECK (rating BETWEEN 1 AND 5),
-  notes      TEXT,
-  photos     TEXT[],
-  created_by UUID REFERENCES auth.users,
-  created_at TIMESTAMPTZ DEFAULT now()
+create table if not exists dates (
+  id         uuid default gen_random_uuid() primary key,
+  couple_id  uuid references couples(id) not null,
+  title      text not null,
+  date       date not null,
+  location   text,
+  mood       text,
+  rating     int check (rating between 1 and 5),
+  notes      text,
+  photos     text[],
+  created_by uuid references auth.users,
+  created_at timestamptz default now()
 );
 
 -- 4. Tabel milestones
-CREATE TABLE IF NOT EXISTS milestones (
-  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  couple_id  UUID REFERENCES couples(id) NOT NULL,
-  title      TEXT NOT NULL,
-  date       DATE NOT NULL,
-  emoji      TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+create table if not exists milestones (
+  id        uuid default gen_random_uuid() primary key,
+  couple_id uuid references couples(id) not null,
+  title     text not null,
+  date      date not null,
+  emoji     text,
+  created_at timestamptz default now()
 );
 
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================================
 
-ALTER TABLE couples    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE profiles   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE dates      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE milestones ENABLE ROW LEVEL SECURITY;
+alter table couples    enable row level security;
+alter table profiles   enable row level security;
+alter table dates      enable row level security;
+alter table milestones enable row level security;
 
--- ── PROFILES ─────────────────────────────────────────────────
-DROP POLICY IF EXISTS "Users insert own profile"  ON profiles;
-DROP POLICY IF EXISTS "Users read own profile"    ON profiles;
-DROP POLICY IF EXISTS "Users update own profile"  ON profiles;
+-- Profiles: baca & update profil sendiri
+create policy "Users read own profile"
+  on profiles for select using (auth.uid() = id);
 
-CREATE POLICY "Users insert own profile"
-  ON profiles FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = id);
+create policy "Users update own profile"
+  on profiles for update using (auth.uid() = id);
 
-CREATE POLICY "Users read own profile"
-  ON profiles FOR SELECT TO authenticated
-  USING (auth.uid() = id);
+create policy "Users insert own profile"
+  on profiles for insert with check (auth.uid() = id);
 
-CREATE POLICY "Users update own profile"
-  ON profiles FOR UPDATE TO authenticated
-  USING (auth.uid() = id);
+-- Couples: baca couple sendiri
+create policy "Couple members read couple"
+  on couples for select
+  using (id in (select couple_id from profiles where id = auth.uid()));
 
--- ── COUPLES ──────────────────────────────────────────────────
--- PENTING: SELECT harus USING(true) agar user bisa cari couple
--- berdasarkan invite_code saat JOIN (sebelum punya couple_id)
-DROP POLICY IF EXISTS "Authenticated insert couple"          ON couples;
-DROP POLICY IF EXISTS "Authenticated read couple"            ON couples;
-DROP POLICY IF EXISTS "Couple members update couple"         ON couples;
-DROP POLICY IF EXISTS "Anyone insert couple"                 ON couples;
-DROP POLICY IF EXISTS "Couple members read couple"           ON couples;
-DROP POLICY IF EXISTS "Users can create a couple"            ON couples;
-DROP POLICY IF EXISTS "Users can read their couple"          ON couples;
-DROP POLICY IF EXISTS "Users can find couple by invite code" ON couples;
-DROP POLICY IF EXISTS "Users can update their couple"        ON couples;
+create policy "Anyone insert couple"
+  on couples for insert with check (true);
 
-CREATE POLICY "Authenticated insert couple"
-  ON couples FOR INSERT TO authenticated
-  WITH CHECK (true);
+-- Dates: akses hanya untuk pasangan yang sama
+create policy "Couple members read dates"
+  on dates for select
+  using (couple_id in (select couple_id from profiles where id = auth.uid()));
 
--- Semua user login bisa baca couples (perlu untuk lookup invite_code)
-CREATE POLICY "Authenticated read couple"
-  ON couples FOR SELECT TO authenticated
-  USING (true);
+create policy "Couple members insert dates"
+  on dates for insert
+  with check (couple_id in (select couple_id from profiles where id = auth.uid()));
 
-CREATE POLICY "Couple members update couple"
-  ON couples FOR UPDATE TO authenticated
-  USING (
-    id IN (SELECT couple_id FROM profiles WHERE id = auth.uid())
-  );
+create policy "Couple members update dates"
+  on dates for update
+  using (couple_id in (select couple_id from profiles where id = auth.uid()));
 
--- ── DATES ────────────────────────────────────────────────────
-DROP POLICY IF EXISTS "Couple members read dates"   ON dates;
-DROP POLICY IF EXISTS "Couple members insert dates" ON dates;
-DROP POLICY IF EXISTS "Couple members update dates" ON dates;
-DROP POLICY IF EXISTS "Couple members delete dates" ON dates;
+create policy "Couple members delete dates"
+  on dates for delete
+  using (couple_id in (select couple_id from profiles where id = auth.uid()));
 
-CREATE POLICY "Couple members read dates"
-  ON dates FOR SELECT TO authenticated
-  USING (
-    couple_id IN (SELECT couple_id FROM profiles WHERE id = auth.uid())
-  );
+-- Milestones: akses hanya untuk pasangan yang sama
+create policy "Couple members read milestones"
+  on milestones for select
+  using (couple_id in (select couple_id from profiles where id = auth.uid()));
 
-CREATE POLICY "Couple members insert dates"
-  ON dates FOR INSERT TO authenticated
-  WITH CHECK (
-    couple_id IN (SELECT couple_id FROM profiles WHERE id = auth.uid())
-  );
+create policy "Couple members insert milestones"
+  on milestones for insert
+  with check (couple_id in (select couple_id from profiles where id = auth.uid()));
 
-CREATE POLICY "Couple members update dates"
-  ON dates FOR UPDATE TO authenticated
-  USING (
-    couple_id IN (SELECT couple_id FROM profiles WHERE id = auth.uid())
-  );
-
-CREATE POLICY "Couple members delete dates"
-  ON dates FOR DELETE TO authenticated
-  USING (
-    couple_id IN (SELECT couple_id FROM profiles WHERE id = auth.uid())
-  );
-
--- ── MILESTONES ───────────────────────────────────────────────
-DROP POLICY IF EXISTS "Couple members read milestones"   ON milestones;
-DROP POLICY IF EXISTS "Couple members insert milestones" ON milestones;
-DROP POLICY IF EXISTS "Couple members update milestones" ON milestones;
-DROP POLICY IF EXISTS "Couple members delete milestones" ON milestones;
-
-CREATE POLICY "Couple members read milestones"
-  ON milestones FOR SELECT TO authenticated
-  USING (
-    couple_id IN (SELECT couple_id FROM profiles WHERE id = auth.uid())
-  );
-
-CREATE POLICY "Couple members insert milestones"
-  ON milestones FOR INSERT TO authenticated
-  WITH CHECK (
-    couple_id IN (SELECT couple_id FROM profiles WHERE id = auth.uid())
-  );
-
-CREATE POLICY "Couple members update milestones"
-  ON milestones FOR UPDATE TO authenticated
-  USING (
-    couple_id IN (SELECT couple_id FROM profiles WHERE id = auth.uid())
-  );
-
-CREATE POLICY "Couple members delete milestones"
-  ON milestones FOR DELETE TO authenticated
-  USING (
-    couple_id IN (SELECT couple_id FROM profiles WHERE id = auth.uid())
-  );
+create policy "Couple members delete milestones"
+  on milestones for delete
+  using (couple_id in (select couple_id from profiles where id = auth.uid()));
 
 -- ============================================================
--- STORAGE BUCKET untuk foto (uncomment jika perlu upload foto)
+-- STORAGE BUCKET untuk foto (jalankan terpisah jika perlu)
 -- ============================================================
--- INSERT INTO storage.buckets (id, name, public)
--- VALUES ('date-photos', 'date-photos', true)
--- ON CONFLICT (id) DO NOTHING;
+-- insert into storage.buckets (id, name, public) values ('date-photos', 'date-photos', true);
