@@ -1,5 +1,4 @@
 /** @type {import('next').NextConfig} */
-
 const nextConfig = {
   reactStrictMode: true,
   images: {
@@ -18,7 +17,7 @@ try {
   })
   exportedConfig = withPWA(nextConfig)
 } catch (e) {
-  console.warn('next-pwa not found, running without PWA support')
+  console.warn('next-pwa not found, skipping PWA')
 }
 
 module.exports = exportedConfig
